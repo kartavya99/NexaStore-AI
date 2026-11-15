@@ -20,11 +20,11 @@ public static class DependencyInjection
         services.AddSingleton(options);
         if (!options.Enabled)
         {
-            services.AddScoped<INextAssistantService, DisabledNexaAssistantService>();
+            services.AddScoped<INexaAssistantService, DisabledNexaAssistantService>();
             return services;
         }
         services.AddSingleton<IChatClient>(_ => new OllamaApiClient(new Uri(options.EndPoint), options.Model));
-        services.AddScoped<INextAssistantService, OllamaNexaAssistantService>();
+        services.AddScoped<INexaAssistantService, OllamaNexaAssistantService>();
         return services;
     }
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, string connectionString)

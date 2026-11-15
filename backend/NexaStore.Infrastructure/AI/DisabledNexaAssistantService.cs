@@ -3,13 +3,16 @@ using System.Runtime.CompilerServices;
 
 namespace NexaStore.Infrastructure.AI
 {
-    public sealed class DisabledNexaAssistantService : INextAssistantService
+    public sealed class DisabledNexaAssistantService : INexaAssistantService
     {
-        public async IAsyncEnumerable<string> StreamResponseAsync(IReadOnlyList<AssistantMessageDto> messages, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        public async IAsyncEnumerable<string> StreamResponseAsync(
+            IReadOnlyList<AssistantMessageDto> messages, 
+            string responseStyles = AssistantResponseStyles.Balanced,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             await Task.Yield();
             cancellationToken.ThrowIfCancellationRequested();
-            yield return "nexa AI is disabled in this enviornment";
+            yield return "Nexa AI is disabled in this enviornment";
                 
         }
     }

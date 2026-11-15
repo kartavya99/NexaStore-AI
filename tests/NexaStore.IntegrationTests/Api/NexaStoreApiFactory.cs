@@ -33,8 +33,8 @@ public sealed class NexaStoreApiFactory : WebApplicationFactory<Program>, IAsync
             services.RemoveAll<DbContextOptions<NexaStoreDbContext>>();
             services.RemoveAll<IDbContextOptionsConfiguration<NexaStoreDbContext>>();
             services.AddDbContext<NexaStoreDbContext>(options => options.UseSqlite(_connection));
-            services.RemoveAll<INextAssistantService>();
-            services.AddSingleton<INextAssistantService, TestAssistantService>();
+            services.RemoveAll<INexaAssistantService>();
+            services.AddSingleton<INexaAssistantService, TestAssistantService>();
         });
     }
 
@@ -55,10 +55,11 @@ public sealed class NexaStoreApiFactory : WebApplicationFactory<Program>, IAsync
         await _connection.DisposeAsync();
     }
 
-    private sealed class TestAssistantService : INextAssistantService
+    private sealed class TestAssistantService : INexaAssistantService
     {
         public async IAsyncEnumerable<string> StreamResponseAsync(
             IReadOnlyList<AssistantMessageDto> messages,
+            string responseStyle = AssistantResponseStyles.Balanced,
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             await Task.Yield();

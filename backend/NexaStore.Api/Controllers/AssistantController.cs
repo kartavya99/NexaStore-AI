@@ -19,7 +19,7 @@ namespace NexaStore.Api.Controllers
             options.Enabled,
             options.Provider,
             options.Model,
-            ["chat", "prompt-styles", "streaming", "cancellation"],
+            ["chat", "prompt-styles", "streaming", "cancellation", "product-tools", "inventory-tools"],
             AssistantResponseStyles.All));
 
         [HttpPost("chat/stream")]
@@ -30,7 +30,7 @@ namespace NexaStore.Api.Controllers
             [FromBody] AssistantChatRequest request, 
             CancellationToken cancellationToken)
         {
-            var requestedId = HttpContext.TraceIdentifier;
+            var requestId = HttpContext.TraceIdentifier;
             var startedAt = TimeProvider.System.GetTimestamp();
             var sequence = 0;
 
@@ -42,24 +42,40 @@ namespace NexaStore.Api.Controllers
             {
                 await WriteEventAsync("started", new
                 {
-                    requestedId,
+                    requestId,
                     model = options.Model,
                     responseStyle = request.ResponseStyle
                 }, cancellationToken);
 
-                await foreach(var chunk in assistant.StreamResponseAsync(
-                    request.Messages,
-                    request.ResponseStyle,
-                    cancellationToken))
-                {                                
-                    await WriteEventAsync("delta", new { sequence = sequence++, content = chunk }, cancellationToken);
+                await foreach (var update in assistant.StreamResponseAsync(
+               request.Messages,
+               request.ResponseStyle,
+               cancellationToken))
+                {
+                    if (update.Type == "tool")
+                    {
+                        await WriteEventAsync("tool", new
+                        {
+                            name = update.ToolName,
+                            label = update.ToolLabel
+                        }, cancellationToken);
+                        continue;
+                    }
+
+                    if (!string.IsNullOrEmpty(update.Content))
+                    {
+                        await WriteEventAsync(
+                            "delta",
+                            new { sequence = sequence++, content = update.Content },
+                            cancellationToken);
+                    }
                 }
-                await WriteEventAsync("done", 
-                    new { 
-                        chunks = sequence,
-                        elapseMs = (long)TimeProvider.System.GetElapsedTime(startedAt).TotalMilliseconds
-                    }, 
-                    cancellationToken);
+                await WriteEventAsync("done", new
+                {
+                    requestId,
+                    chunks = sequence,
+                    elapsedMs = (long)TimeProvider.System.GetElapsedTime(startedAt).TotalMilliseconds
+                }, cancellationToken);
             }
             catch(OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {

@@ -14,7 +14,7 @@ namespace NexaStore.Infrastructure.AI
     {
         public async IAsyncEnumerable<AssistantStreamUpdate> StreamResponseAsync(
             IReadOnlyList<AssistantMessageDto> messages, 
-            string responseStyle = "balanced", 
+            string responseStyle = AssistantResponseStyles.Balanced,
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             var chatMessages = new List<ChatMessage>(messages.Count + 1)
@@ -31,15 +31,36 @@ namespace NexaStore.Infrastructure.AI
                 "Starting {Provider} AI response for a conversation with {MessageCount} messages",
                 options.Provider,
                 messages.Count);
+
+
+            var chatOptions = new ChatOptions
+            {
+                MaxOutputTokens = options.MaxOutputTokens,
+                Tools = tools.CreateAll()
+            };
+
+            if (string.Equals(options.Provider, AiProviders.Ollama, StringComparison.OrdinalIgnoreCase))
+            {
+                chatOptions.Temperature = options.Temperature;
+            }
+            else
+            {
+                chatOptions.Reasoning = new ReasoningOptions
+                {
+                    Effort = ReasoningEffort.Medium
+                };
+            }
+
+            logger.LogDebug(
+                "AI request options selected for {Provider}: temperature configured = {HasTemperature}, reasoning effort = {ReasoningEffort}",
+                options.Provider,
+                chatOptions.Temperature.HasValue,
+                chatOptions.Reasoning?.Effort);
+
             await foreach (var update in chatClient.GetStreamingResponseAsync(
                 chatMessages,
-                new ChatOptions
-                {
-                    Temperature = options.Temperature,
-                    MaxOutputTokens = options.MaxOutputTokens,
-                    Tools = tools.CreateAll()
-                },
-                 cancellationToken: cancellationToken))
+                chatOptions,
+                cancellationToken: cancellationToken))
             {
                 foreach (var activity in activityTracker.Drain())
                 {

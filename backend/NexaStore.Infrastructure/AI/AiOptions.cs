@@ -34,12 +34,7 @@
             if(!Uri.TryCreate(selectedProvider.Endpoint, UriKind.Absolute, out _))
             {
                 throw new InvalidOperationException($"AI:Providers:{Provider}:Endpoint must be an absolute URI.");
-            }
-
-            if (!string.Equals(Provider, "Ollama", StringComparison.OrdinalIgnoreCase))
-            {
-                throw new InvalidOperationException($"Unsupported AI Provider '{Provider}'. Phase 02 supports only Ollama");
-            }
+            }                    
 
             ArgumentException.ThrowIfNullOrWhiteSpace(selectedProvider.Model);
 

@@ -10,7 +10,7 @@ namespace NexaStore.Infrastructure.AI
         AiOptions options,
         NexaStoreAiTools tools,
         AiToolActivityTracker activityTracker,
-        ILogger<OllamaNexaAssistantService> logger) : INexaAssistantService
+        ILogger<NexaAssistantService> logger) : INexaAssistantService
     {
         public async IAsyncEnumerable<AssistantStreamUpdate> StreamResponseAsync(
             IReadOnlyList<AssistantMessageDto> messages, 

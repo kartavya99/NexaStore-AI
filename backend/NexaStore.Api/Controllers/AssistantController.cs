@@ -18,7 +18,7 @@ namespace NexaStore.Api.Controllers
         public ActionResult<AssistantStatusDto> GetStatus() => Ok(new AssistantStatusDto(
             options.Enabled,
             options.Provider,
-            options.Model,
+            options.SelectedProvider.Model,
             ["chat", "prompt-styles", "streaming", "cancellation", "product-tools", "inventory-tools"],
             AssistantResponseStyles.All));
 
@@ -43,7 +43,7 @@ namespace NexaStore.Api.Controllers
                 await WriteEventAsync("started", new
                 {
                     requestId,
-                    model = options.Model,
+                    model = options.SelectedProvider.Model,
                     responseStyle = request.ResponseStyle
                 }, cancellationToken);
 
@@ -83,8 +83,11 @@ namespace NexaStore.Api.Controllers
             }
             catch(Exception exception)
             {
-                logger.LogError(exception, "Local AI provider failed while streaming a response");
-                await WriteEventAsync("error", new { message = "Nexa AI couldn't reach local model. Confirm Ollama and configured model are running;" }, cancellationToken);
+                logger.LogError(exception, "AI provider {Provider }failed while streaming a response", options.Provider);
+                await WriteEventAsync(
+                    "error", 
+                    new { message = "Nexa AI couldn't reach the configured provider. Check its credentials, model access and connectivty." }, 
+                    cancellationToken);
             }
         }
 

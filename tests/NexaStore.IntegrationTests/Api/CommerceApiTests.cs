@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using NexaStore.Application.AI;
 using NexaStore.Application.Cart;
 using NexaStore.Application.Catalog;
 using NexaStore.Infrastructure.AI;
+using OpenAI.Responses;
 using System.Net;
 using System.Net.Http.Json;
 
@@ -72,7 +74,7 @@ public sealed class CommerceApiTests(NexaStoreApiFactory factory) : IClassFixtur
     }
 
     [Fact]
-    public async Task AssistantStatus_ReturnsConfiguredLocalProvider()
+    public async Task AssistantStatus_ReturnsConfiguredCloudProvider()
     {
         var client = factory.CreateClient();
 
@@ -82,11 +84,22 @@ public sealed class CommerceApiTests(NexaStoreApiFactory factory) : IClassFixtur
 
         Assert.NotNull(status);
         Assert.True(status.Enabled);
-        Assert.Equal("Ollama", status.Provider);
+        Assert.Equal("OpenAI", status.Provider);
+        Assert.Equal("gpt-5.6-terra", status.Model);
         Assert.Contains("streaming", status.Capabilities);
         Assert.Contains("product-tools", status.Capabilities);
         Assert.Contains("balanced", status.ResponseStyles);
     }
+
+    [Fact]
+#pragma warning disable OPENAI001 // Verifies the intentionally selected Responses API adapter.
+    public void OpenAiProvider_UsesResponsesApiAdapter()
+    {
+        var chatClient = factory.Services.GetRequiredService<IChatClient>();
+
+        Assert.NotNull(chatClient.GetService<ResponsesClient>());
+    }
+#pragma warning restore OPENAI001
 
     [Fact]
     public async Task AssistantStream_ReturnsServerSentEvents()
@@ -108,7 +121,7 @@ public sealed class CommerceApiTests(NexaStoreApiFactory factory) : IClassFixtur
         Assert.Contains("event: delta", body);
         Assert.Contains("event: tool", body);
         Assert.Contains("search_products", body);
-        Assert.Contains("Local test response", body);
+        Assert.Contains("Test response", body);
         Assert.Contains("event: done", body);
         Assert.Contains("\"chunks\":1", body);
     }

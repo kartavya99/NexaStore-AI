@@ -5,14 +5,13 @@ using System.Runtime.CompilerServices;
 
 namespace NexaStore.Infrastructure.AI
 {
-    public sealed class OllamaNexaAssistantService(
-        IChatClient chatClient,
+    public sealed class NexaAssistantService(
+         IChatClient chatClient,
         AiOptions options,
         NexaStoreAiTools tools,
         AiToolActivityTracker activityTracker,
-        ILogger<OllamaNexaAssistantService> logger) : INexaAssistantService
+        ILogger<NexaAssistantService> logger) : INexaAssistantService
     {
-       
         public async IAsyncEnumerable<AssistantStreamUpdate> StreamResponseAsync(
             IReadOnlyList<AssistantMessageDto> messages, 
             string responseStyle = AssistantResponseStyles.Balanced,
@@ -22,26 +21,46 @@ namespace NexaStore.Infrastructure.AI
             {
                 new(ChatRole.System, AssistantPromptFactory.Create(responseStyle))
             };
-
             chatMessages.AddRange(messages.Select(message => new ChatMessage(
                 string.Equals(message.Role, "assistant", StringComparison.OrdinalIgnoreCase)
-                    ? ChatRole.Assistant 
-                    : ChatRole.User, 
+                    ? ChatRole.Assistant
+                    : ChatRole.User,
                 message.Content.Trim())));
 
             logger.LogInformation(
-                "Starting local AI response for a conversation with {messageCount} messages", 
+                "Starting {Provider} AI response for a conversation with {MessageCount} messages",
+                options.Provider,
                 messages.Count);
+
+
+            var chatOptions = new ChatOptions
+            {
+                MaxOutputTokens = options.MaxOutputTokens,
+                Tools = tools.CreateAll()
+            };
+
+            if (string.Equals(options.Provider, AiProviders.Ollama, StringComparison.OrdinalIgnoreCase))
+            {
+                chatOptions.Temperature = options.Temperature;
+            }
+            else
+            {
+                chatOptions.Reasoning = new ReasoningOptions
+                {
+                    Effort = ReasoningEffort.Medium
+                };
+            }
+
+            logger.LogDebug(
+                "AI request options selected for {Provider}: temperature configured = {HasTemperature}, reasoning effort = {ReasoningEffort}",
+                options.Provider,
+                chatOptions.Temperature.HasValue,
+                chatOptions.Reasoning?.Effort);
 
             await foreach (var update in chatClient.GetStreamingResponseAsync(
                 chatMessages,
-                new ChatOptions
-                {
-                    Temperature = options.Temperature,
-                    MaxOutputTokens = options.MaxOutputTokens,
-                    Tools = tools.CreateAll()
-                },
-                 cancellationToken: cancellationToken))
+                chatOptions,
+                cancellationToken: cancellationToken))
             {
                 foreach (var activity in activityTracker.Drain())
                 {
